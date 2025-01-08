@@ -2,6 +2,8 @@
 
 A ROS 2 package that converts occupancy grids from `nav2_map_server` into 3D heightmap models for use in Gazebo simulations.
 
+![screenshot](screenshot.png)
+
 ## Features
 - **Occupancy Grid Conversion**: Converts 2D occupancy grid maps into heightmaps for 3D simulation.
 - **Image Processing**: Includes median filtering and color inversion to improve map accuracy.
