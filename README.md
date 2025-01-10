@@ -20,7 +20,7 @@ A ROS 2 package that converts occupancy grids from `nav2_map_server` into 3D hei
 ## Installation
 1. Clone the repository into your ROS 2 workspace:
    ```bash
-   git clone https://github.com/your-repository/heightmap_spawner.git
+   git clone https://github.com/damanikjosh/heightmap_spawner.git
    ```
 2. Install required dependencies using `rosdep`:
    ```bash
