@@ -23,14 +23,6 @@
     <plugin name="gz::sim::systems::Sensors" filename="gz-sim-sensors-system">
       <render_engine>ogre2</render_engine>
     </plugin>
-    <plugin
-      filename="BasicSystem"
-      name="racecar_gazebo::BasicSystem">
-    </plugin>
-    <plugin
-      filename="FullSystem"
-      name="racecar_gazebo::FullSystem">
-    </plugin>
 
     <light name="sun" type="directional">
       <cast_shadows>true</cast_shadows>

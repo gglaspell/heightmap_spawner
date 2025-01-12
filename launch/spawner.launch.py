@@ -8,7 +8,6 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    pkg_project_description = get_package_share_directory('racecar_description')
     
     launch_arguments = []
     launch_arguments.append(DeclareLaunchArgument(
