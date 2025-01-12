@@ -223,23 +223,27 @@ private:
     }
 
     void createEntityFromStr(const std::string& modelStr, const std::string& worldName = "default", int timeout = 5000) {
-        bool result;
-        gz::msgs::EntityFactory req;
-        gz::msgs::Boolean res;
-        req.set_sdf(modelStr);
+        while (true) {
+            bool result;
+            gz::msgs::EntityFactory req;
+            gz::msgs::Boolean res;
+            req.set_sdf(modelStr);
 
-        bool executed = gz_node_.Request("/world/" + worldName + "/create", req, timeout, res, result);
-        if (executed) {
-            if (result) {
-                std::cout << "Entity was created: [" << res.data() << "]" << std::endl;
+            bool executed = gz_node_.Request("/world/" + worldName + "/create", req, timeout, res, result);
+            if (executed) {
+                if (result) {
+                    std::cout << "Entity was created: [" << res.data() << "]" << std::endl;
+                    break;
+                } else {
+                    std::cout << "Service call failed. Retrying..." << std::endl;
+                }
             } else {
-                std::cout << "Service call failed" << std::endl;
+                std::cerr << "Service call timed out. Retrying..." << std::endl;
             }
-        } else {
-            std::cerr << "Service call timed out" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
-
+    
     rclcpp::Client<nav_msgs::srv::GetMap>::SharedPtr map_client_;
     gz::transport::Node gz_node_;
 };
