@@ -24,8 +24,8 @@ public:
         this->declare_parameter("height", 0.5);
         this->declare_parameter("use_median_filtering", true);
         this->declare_parameter("use_color_inverse", true);
-        this->declare_parameter("low_thresh", 200);
-        this->declare_parameter("high_thresh", 255);
+        this->declare_parameter("low_thresh", 0);
+        this->declare_parameter("high_thresh", 100);
 
         // Create a service client to request the map
         map_client_ = this->create_client<nav_msgs::srv::GetMap>("map_server/map");
@@ -76,10 +76,12 @@ private:
 
     void map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         auto height = this->get_parameter("height").as_double();
+        auto low_thresh = this->get_parameter("low_thresh").as_int();
+        auto high_thresh = this->get_parameter("high_thresh").as_int();
 
         RCLCPP_INFO(this->get_logger(), "Received a map");
 
-        Mat map_image = occupancy_grid_to_image(msg);
+        Mat map_image = occupancy_grid_to_image(msg, low_thresh, high_thresh);
 
         float resolution = msg->info.resolution;
         float size_x = resolution * msg->info.width;
@@ -96,7 +98,7 @@ private:
         create_entity(size_x, size_y, origin_x, origin_y, height);
     }
 
-    Mat occupancy_grid_to_image(const nav_msgs::msg::OccupancyGrid::SharedPtr& grid) {
+    Mat occupancy_grid_to_image(const nav_msgs::msg::OccupancyGrid::SharedPtr& grid, int low_thresh, int high_thresh) {
         int width = grid->info.width;
         int height = grid->info.height;
         Mat image(height, width, CV_8UC1);
@@ -105,12 +107,16 @@ private:
             for (int j = 0; j < width; ++j) {
                 int index = (height - i - 1) * width + j;
                 int value = grid->data[index];
-                if (value == 100) {
-                    image.at<uchar>(i, j) = 127; // Wall (gray)
-                } else if (value == 0) {
+                if (value == -1) {
+                    image.at<uchar>(i, j) = 0; // Unknown (black)
+                } else if (value >= high_thresh) {
+                    image.at<uchar>(i, j) = 0; // Wall (black)
+                } else if (value <= low_thresh) {
                     image.at<uchar>(i, j) = 255; // Floor (white)
                 } else {
-                    image.at<uchar>(i, j) = 127; // Unknown (gray)
+                    // Map linearly from 0-100 to 0-255
+                    float scale = 255.0 / 100.0;
+                    image.at<uchar>(i, j) = value * scale;
                 }
             }
         }
@@ -121,8 +127,6 @@ private:
         auto save_path = this->get_parameter("save_path").as_string();
         auto use_median_filtering = this->get_parameter("use_median_filtering").as_bool();
         auto use_color_inverse = this->get_parameter("use_color_inverse").as_bool();
-        auto low_thresh = this->get_parameter("low_thresh").as_int();
-        auto high_thresh = this->get_parameter("high_thresh").as_int();
 
         if (use_median_filtering) {
             medianBlur(source_image, source_image, 5);

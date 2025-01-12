@@ -22,7 +22,7 @@ def generate_launch_description():
     ))
     launch_arguments.append(DeclareLaunchArgument(
         'use_median_filtering',
-        default_value='true',
+        default_value='false',
         description='Use median filtering.'
     ))
     launch_arguments.append(DeclareLaunchArgument(
@@ -32,12 +32,12 @@ def generate_launch_description():
     ))
     launch_arguments.append(DeclareLaunchArgument(
         'low_thresh',
-        default_value='200',
+        default_value='0',
         description='Bottom threshold.'
     ))
     launch_arguments.append(DeclareLaunchArgument(
         'high_thresh',
-        default_value='255',
+        default_value='100',
         description='Top threshold.'
     ))
     
