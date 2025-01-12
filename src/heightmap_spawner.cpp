@@ -34,7 +34,11 @@ public:
         request_map();
 
         // Exit
-        rclcpp::shutdown();
+        done_ = true;
+    }
+
+    bool is_done() {
+        return done_;
     }
 
 private:
@@ -246,11 +250,15 @@ private:
     
     rclcpp::Client<nav_msgs::srv::GetMap>::SharedPtr map_client_;
     gz::transport::Node gz_node_;
+    bool done_ = false;
 };
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<HeightmapSpawner>());
+    auto node = std::make_shared<HeightmapSpawner>();
+    while (!node->is_done()) {
+        rclcpp::spin_some(node->get_node_base_interface());
+    }
     rclcpp::shutdown();
     return 0;
 }
