@@ -15,13 +15,15 @@
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler
 from launch.actions import IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 from launch_ros.actions import Node
+
+from launch.event_handlers import OnProcessExit
 
 
 def generate_launch_description():
@@ -32,6 +34,11 @@ def generate_launch_description():
         default_value='true',
         description='Open RViz.'
     ))
+    launch_arguments.append(DeclareLaunchArgument(
+        'map_topic',
+        default_value='/mrpt_map/map_gridmap',
+        description='The topic where the map is published.'
+    ))
 
     # Setup project paths
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
@@ -39,33 +46,6 @@ def generate_launch_description():
 
     # Load the SDF file from "description" package
     world_file = PathJoinSubstitution([pkg_heightmap_spawner, 'example', 'empty.sdf'])
-    rviz_file = PathJoinSubstitution([pkg_heightmap_spawner, 'example', 'map.rviz'])
-    map_file = PathJoinSubstitution([get_package_share_directory('heightmap_spawner'), 'example', 'berlin.yaml'])
-
-    map_server = Node(
-        package='nav2_map_server',
-        executable='map_server',
-        name='map_server',
-        output='screen',
-        parameters=[{
-            'yaml_filename': map_file,
-        }],
-    )
-
-    lifecycle_nodes = ['map_server']
-
-    lifecycle_manager = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='lifecycle_manager',
-        output='screen',
-        arguments=['lifecycle_manager', '--ros-args', '--log-level', 'info'],
-        parameters=[{
-            'use_sim_time': True,
-            'autostart': True,
-            'node_names': lifecycle_nodes
-        }],
-    )
 
     # Setup to launch the simulator and Gazebo world
     gz_sim = IncludeLaunchDescription(
@@ -77,20 +57,20 @@ def generate_launch_description():
     heightmap_spawner = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([pkg_heightmap_spawner, 'launch', 'spawner.launch.py'])),
+        launch_arguments={'map_topic': LaunchConfiguration('map_topic')}.items()
     )
 
     # Visualize in RViz
+    rviz_file = PathJoinSubstitution([pkg_heightmap_spawner, 'example', 'map.rviz'])
     rviz = Node(
-       package='rviz2',
-       executable='rviz2',
-       arguments=['-d', rviz_file],
-       condition=IfCondition(LaunchConfiguration('rviz'))
+        package='rviz2',
+        executable='rviz2',
+        arguments=['-d', rviz_file],
+        condition=IfCondition(LaunchConfiguration('rviz'))
     )
 
     nodes = [
         gz_sim,
-        map_server,
-        lifecycle_manager,
         heightmap_spawner,
         rviz,
     ]

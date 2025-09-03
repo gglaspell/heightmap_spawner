@@ -8,8 +8,13 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    
+
     launch_arguments = []
+    launch_arguments.append(DeclareLaunchArgument(
+        'map_topic',
+        default_value='/map',
+        description='The topic where the map is published.'
+    ))
     launch_arguments.append(DeclareLaunchArgument(
         'save_path',
         default_value='/tmp',
@@ -40,7 +45,7 @@ def generate_launch_description():
         default_value='100',
         description='Top threshold.'
     ))
-    
+
     heightmap_spawner = Node(
         package='heightmap_spawner',
         executable='heightmap_spawner',
@@ -53,7 +58,10 @@ def generate_launch_description():
             'use_color_inverse': LaunchConfiguration('use_color_inverse'),
             'low_thresh': LaunchConfiguration('low_thresh'),
             'high_thresh': LaunchConfiguration('high_thresh')
-        }]
+        }],
+        remappings=[
+            ('map', LaunchConfiguration('map_topic'))
+        ]
     )
 
     nodes = [heightmap_spawner]

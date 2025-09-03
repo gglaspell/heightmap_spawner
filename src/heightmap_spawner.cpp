@@ -27,14 +27,15 @@ public:
         this->declare_parameter("low_thresh", 0);
         this->declare_parameter("high_thresh", 100);
 
-        // Create a service client to request the map
-        map_client_ = this->create_client<nav_msgs::srv::GetMap>("map_server/map");
+        // Set QoS to match map topics (transient local)
+        auto qos = rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable();
 
-        // Request the map
-        request_map();
+        // Create a subscription to the /map topic
+        map_subscription_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
+            "map", qos, std::bind(&HeightmapSpawner::map_callback, this, std::placeholders::_1));
 
-        // Exit
-        done_ = true;
+        // Log the actual topic name after remapping
+        RCLCPP_INFO(this->get_logger(), "Heightmap spawner started. Waiting for map on topic '%s'...", map_subscription_->get_topic_name());
     }
 
     bool is_done() {
@@ -42,39 +43,16 @@ public:
     }
 
 private:
-    void request_map() {
-        auto request = std::make_shared<nav_msgs::srv::GetMap::Request>();
-
-        while (!map_client_->wait_for_service(std::chrono::seconds(1))) {
-            if (!rclcpp::ok()) {
-                RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
-                return;
-            }
-            RCLCPP_INFO(this->get_logger(), "Waiting for the map service to be available...");
-        }
-
-        RCLCPP_INFO(this->get_logger(), "Requesting the map...");
-        auto result = map_client_->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) != rclcpp::FutureReturnCode::SUCCESS) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to get the map. Retrying...");
-            rclcpp::sleep_for(std::chrono::seconds(1));
-            request_map();
-            return;
-        } else {
-            auto response = result.get();
-            if (response->map.info.width == 0 || response->map.info.height == 0) {
-                RCLCPP_ERROR(this->get_logger(), "Received an invalid map. Retrying...");
-                rclcpp::sleep_for(std::chrono::seconds(1));
-                request_map();
-                return;
-            } else {
-                auto map_msg = std::make_shared<nav_msgs::msg::OccupancyGrid>(response->map);
-                map_callback(map_msg);
-            }
-        }
-    }
-
     void map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+        if (done_) return; // Process only the first valid map
+
+        // Add a check to ensure the map is not empty
+        if (msg->info.width == 0 || msg->info.height == 0) {
+            RCLCPP_WARN(this->get_logger(), "Received an empty or invalid map, ignoring.");
+            return;
+        }
+
+
         auto height = this->get_parameter("height").as_double();
         auto low_thresh = this->get_parameter("low_thresh").as_int();
         auto high_thresh = this->get_parameter("high_thresh").as_int();
@@ -96,6 +74,10 @@ private:
         float origin_y = msg->info.origin.position.y + size_y / 2;
 
         create_entity(size_x, size_y, origin_x, origin_y, height);
+
+        // Mark as done to avoid processing further maps
+        RCLCPP_INFO(this->get_logger(), "Heightmap spawned successfully. Shutting down node.");
+        done_ = true;
     }
 
     Mat occupancy_grid_to_image(const nav_msgs::msg::OccupancyGrid::SharedPtr& grid, int low_thresh, int high_thresh) {
@@ -251,8 +233,8 @@ private:
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
-    
-    rclcpp::Client<nav_msgs::srv::GetMap>::SharedPtr map_client_;
+
+    rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_subscription_;
     gz::transport::Node gz_node_;
     bool done_ = false;
 };
@@ -260,8 +242,9 @@ private:
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<HeightmapSpawner>();
-    while (!node->is_done()) {
-        rclcpp::spin_some(node->get_node_base_interface());
+    // Spin until the node is done or shutdown is requested
+    while (rclcpp::ok() && !node->is_done()) {
+        rclcpp::spin_some(node);
     }
     rclcpp::shutdown();
     return 0;
