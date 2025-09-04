@@ -1,4 +1,10 @@
-# heightmap_spawner
+# Modifications
+
+I added a subscription to the `example.launch.py` file. The new topic is called `map_topic` and is a of the type`nav_msgs::msg::OccupancyGrid`. That way, we can use the package `ros-jazzy-mrpt-map-server` to load an occupancy grid and pass it to `heightmap_spwaner`. 
+
+# Original README below
+
+## heightmap_spawner
 
 A ROS 2 package that converts occupancy grids from `nav2_map_server` into 3D heightmap models for use in Gazebo simulations.
 
